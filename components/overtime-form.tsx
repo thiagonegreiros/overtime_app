@@ -25,12 +25,15 @@ interface OvertimeFormProps {
   onSubmit: (data: OvertimeEntryInput) => Promise<void>;
   initialData?: OvertimeEntryInput;
   isEditing?: boolean;
+  /** Quando "modal", não envolve em Card (para uso dentro de Dialog) */
+  variant?: "card" | "modal";
 }
 
 export function OvertimeForm({
   onSubmit,
   initialData,
   isEditing = false,
+  variant = "card",
 }: OvertimeFormProps) {
   const [inputMode, setInputMode] = useState<"hours" | "time">("hours");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -78,16 +81,8 @@ export function OvertimeForm({
     }
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Plus className="h-5 w-5" />
-          {isEditing ? "Editar Registro" : "Adicionar Registro"}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
+  const formContent = (
+    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="date">Data</Label>
@@ -216,7 +211,21 @@ export function OvertimeForm({
                 : "Adicionar"}
           </Button>
         </form>
-      </CardContent>
+  );
+
+  if (variant === "modal") {
+    return formContent;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Plus className="h-5 w-5" />
+          {isEditing ? "Editar Registro" : "Adicionar Registro"}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>{formContent}</CardContent>
     </Card>
   );
 }

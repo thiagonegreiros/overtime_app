@@ -56,6 +56,30 @@ export async function GET(request: NextRequest) {
     const balance = totalWorked - totalUsed;
     const availableDays = balance / 8;
 
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const firstDayMonth = new Date(year, month, 1);
+    const lastDayMonth = new Date(year, month + 1, 0);
+    const startMonth = firstDayMonth.toISOString().slice(0, 10);
+    const endMonth = lastDayMonth.toISOString().slice(0, 10);
+    const startYear = `${year}-01-01`;
+    const endYear = `${year}-12-31`;
+
+    const workedEntries = allEntries.filter(e => e.type === 'worked');
+
+    const entriesCurrentMonth = workedEntries.filter(
+      e => e.date >= startMonth && e.date <= endMonth
+    );
+    const monthDaysWithOvertime = new Set(entriesCurrentMonth.map(e => e.date)).size;
+    const monthTotalHours = entriesCurrentMonth.reduce((sum, e) => sum + (e.hours || 0), 0);
+
+    const entriesCurrentYear = workedEntries.filter(
+      e => e.date >= startYear && e.date <= endYear
+    );
+    const yearDaysWithOvertime = new Set(entriesCurrentYear.map(e => e.date)).size;
+    const yearTotalHours = entriesCurrentYear.reduce((sum, e) => sum + (e.hours || 0), 0);
+
     return NextResponse.json({
       entries,
       pagination: {
@@ -69,6 +93,14 @@ export async function GET(request: NextRequest) {
         totalUsed,
         balance,
         availableDays: Math.round(availableDays * 100) / 100,
+        monthSummary: {
+          daysWithOvertime: monthDaysWithOvertime,
+          totalHours: Math.round(monthTotalHours * 10) / 10,
+        },
+        yearSummary: {
+          daysWithOvertime: yearDaysWithOvertime,
+          totalHours: Math.round(yearTotalHours * 10) / 10,
+        },
       },
     });
   } catch (error) {
