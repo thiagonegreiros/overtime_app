@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { OvertimeForm } from "@/components/overtime-form";
 import { OvertimeList } from "@/components/overtime-list";
 import { OvertimeSummary } from "@/components/overtime-summary";
@@ -18,28 +19,12 @@ import {
 } from "@/components/ui/dialog";
 import { LayoutDashboard, List, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface ApiResponse {
-  entries: OvertimeEntry[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-  summary: {
-    totalWorked: number;
-    totalUsed: number;
-    balance: number;
-    availableDays: number;
-    monthSummary?: { daysWithOvertime: number; totalHours: number };
-    yearSummary?: { daysWithOvertime: number; totalHours: number };
-  };
-}
+import { fetchEntries, createEntry, deleteEntry } from "@/lib/api-client";
 
 type Tab = "dashboard" | "registros";
 
 export default function Home() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
@@ -62,22 +47,15 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchEntries = useCallback(async () => {
+  const loadEntries = useCallback(async () => {
     try {
       setIsLoading(true);
-      const params = new URLSearchParams({
-        page: pagination.page.toString(),
-        limit: pagination.limit.toString(),
+      const data = await fetchEntries({
+        page: pagination.page,
+        limit: pagination.limit,
+        type: typeFilter,
       });
 
-      if (typeFilter !== "all") {
-        params.append("type", typeFilter);
-      }
-
-      const response = await fetch(`/api/overtime?${params}`);
-      if (!response.ok) throw new Error("Erro ao buscar registros");
-
-      const data: ApiResponse = await response.json();
       setEntries(data.entries);
       setPagination(data.pagination);
       setSummary({
@@ -91,10 +69,10 @@ export default function Home() {
           totalHours: 0,
         },
       });
-    } catch (_error) {
+    } catch (error) {
       toast({
         title: "Erro",
-        description: "Não foi possível carregar os registros",
+        description: error instanceof Error ? error.message : "Não foi possível carregar os registros",
         variant: "destructive",
       });
     } finally {
@@ -103,41 +81,30 @@ export default function Home() {
   }, [pagination.page, pagination.limit, typeFilter, toast]);
 
   useEffect(() => {
-    fetchEntries();
-  }, [fetchEntries]);
+    loadEntries();
+  }, [loadEntries]);
 
   const handleSubmit = async (data: OvertimeEntryInput) => {
     try {
-      const response = await fetch("/api/overtime", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) throw new Error("Erro ao criar registro");
-
+      await createEntry(data);
       toast({
         title: "Sucesso",
         description: "Registro criado com sucesso",
       });
 
       setModalOpen(false);
-      fetchEntries();
-    } catch (_error) {
+      loadEntries();
+    } catch (error) {
       toast({
         title: "Erro",
-        description: "Não foi possível criar o registro",
+        description: error instanceof Error ? error.message : "Não foi possível criar o registro",
         variant: "destructive",
       });
     }
   };
 
-  const handleEdit = async (_entry: OvertimeEntry) => {
-    toast({
-      title: "Em desenvolvimento",
-      description: "Funcionalidade de edição em breve",
-      variant: "warning",
-    });
+  const handleEdit = (entry: OvertimeEntry) => {
+    router.push(`/edit/${entry.id}`);
   };
 
   const handleDeleteClick = (id: number) => {
@@ -148,23 +115,18 @@ export default function Home() {
     if (deleteConfirmId === null) return;
 
     try {
-      const response = await fetch(`/api/overtime/${deleteConfirmId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) throw new Error("Erro ao deletar registro");
-
+      await deleteEntry(deleteConfirmId);
       toast({
         title: "Sucesso",
         description: "Registro excluído com sucesso",
       });
 
       setDeleteConfirmId(null);
-      fetchEntries();
-    } catch (_error) {
+      loadEntries();
+    } catch (error) {
       toast({
         title: "Erro",
-        description: "Não foi possível excluir o registro",
+        description: error instanceof Error ? error.message : "Não foi possível excluir o registro",
         variant: "destructive",
       });
     }
