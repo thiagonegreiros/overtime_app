@@ -4,7 +4,13 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { OvertimeForm } from "@/components/overtime-form";
 import { OvertimeEntryInput } from "@/lib/validations";
-import { getEntryById, updateEntry } from "@/lib/api-client";
+import type { Project } from "@/lib/db/schema";
+import {
+  getEntryById,
+  updateEntry,
+  fetchProjects,
+  createProject,
+} from "@/lib/api-client";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +24,7 @@ export default function EditPage() {
   const [initialData, setInitialData] = useState<OvertimeEntryInput | null>(
     null,
   );
+  const [projects, setProjects] = useState<Project[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const entryId = params.id ? parseInt(params.id as string) : null;
@@ -32,9 +39,14 @@ export default function EditPage() {
     const loadEntry = async () => {
       try {
         setIsLoading(true);
-        const entry = await getEntryById(entryId);
+        const [entry, projectList] = await Promise.all([
+          getEntryById(entryId),
+          fetchProjects(),
+        ]);
 
+        setProjects(projectList);
         setInitialData({
+          projectId: entry.projectId,
           date: entry.date,
           type: entry.type,
           hours: entry.hours ?? undefined,
@@ -139,6 +151,8 @@ export default function EditPage() {
 
         <OvertimeForm
           onSubmit={handleSubmit}
+          projects={projects}
+          onCreateProject={createProject}
           initialData={initialData}
           isEditing={true}
         />

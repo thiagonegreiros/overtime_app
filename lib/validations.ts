@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const overtimeEntrySchema = z.object({
+  projectId: z.number({ required_error: 'Projeto é obrigatório' }).int().positive('Projeto é obrigatório'),
   date: z.string().min(1, 'Data é obrigatória'),
   type: z.enum(['worked', 'used'], {
     required_error: 'Tipo é obrigatório',
@@ -33,3 +34,13 @@ export const overtimeEntrySchema = z.object({
 );
 
 export type OvertimeEntryInput = z.infer<typeof overtimeEntrySchema>;
+
+export const projectSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Nome do projeto é obrigatório')
+    .max(100, 'Nome muito longo'),
+});
+
+export type ProjectInput = z.infer<typeof projectSchema>;

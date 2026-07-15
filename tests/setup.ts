@@ -7,8 +7,17 @@ export function createTestDb() {
   const db = drizzle(sqlite, { schema });
 
   sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS projects (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS overtime_entries (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER REFERENCES projects(id),
       date TEXT NOT NULL,
       type TEXT NOT NULL CHECK(type IN ('worked', 'used')),
       hours REAL,

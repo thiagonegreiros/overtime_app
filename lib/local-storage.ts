@@ -1,6 +1,21 @@
 import { OvertimeEntry } from '@/lib/db/schema';
 
 const STORAGE_KEY = 'overtime_entries';
+const LAST_PROJECT_KEY = 'overtime_last_project_id';
+
+export const lastProjectStorage = {
+  get: (): number | null => {
+    if (typeof window === 'undefined') return null;
+    const raw = localStorage.getItem(LAST_PROJECT_KEY);
+    if (!raw) return null;
+    const id = Number(raw);
+    return Number.isFinite(id) ? id : null;
+  },
+  set: (projectId: number): void => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(LAST_PROJECT_KEY, String(projectId));
+  },
+};
 
 export const localStorageHelper = {
   getEntries: (): OvertimeEntry[] => {

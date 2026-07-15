@@ -1,4 +1,4 @@
-import { OvertimeEntry } from './db/schema';
+import { OvertimeEntry, Project } from './db/schema';
 import { OvertimeEntryInput } from './validations';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -22,6 +22,7 @@ export interface ApiResponse {
 }
 
 export interface FetchEntriesParams {
+  projectId: number;
   page?: number;
   limit?: number;
   type?: string;
@@ -29,9 +30,37 @@ export interface FetchEntriesParams {
   endDate?: string;
 }
 
-export async function fetchEntries(params: FetchEntriesParams = {}): Promise<ApiResponse> {
+export async function fetchProjects(): Promise<Project[]> {
+  const response = await fetch(`${API_URL}/api/projects`);
+
+  if (!response.ok) {
+    throw new Error('Erro ao buscar projetos');
+  }
+
+  return response.json();
+}
+
+export async function createProject(name: string): Promise<Project> {
+  const response = await fetch(`${API_URL}/api/projects`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+
+  if (!response.ok) {
+    if (response.status === 409) {
+      throw new Error('Já existe um projeto com esse nome');
+    }
+    throw new Error('Erro ao criar projeto');
+  }
+
+  return response.json();
+}
+
+export async function fetchEntries(params: FetchEntriesParams): Promise<ApiResponse> {
   const searchParams = new URLSearchParams();
-  
+
+  searchParams.append('projectId', params.projectId.toString());
   if (params.page) searchParams.append('page', params.page.toString());
   if (params.limit) searchParams.append('limit', params.limit.toString());
   if (params.type && params.type !== 'all') searchParams.append('type', params.type);

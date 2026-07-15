@@ -59,11 +59,17 @@ overtime_app/
 1. O frontend (Next.js) usa o `api-client` para se comunicar com o backend Elysia.js
 2. O backend valida requisições com Zod, processa lógica de negócio e interage com SQLite via Drizzle ORM
 3. Endpoints da API:
-   - `GET /api/overtime` - Lista registros com paginação, filtros e resumo
-   - `POST /api/overtime` - Cria novo registro
+   - `GET /api/projects` - Lista projetos
+   - `POST /api/projects` - Cria projeto (nome único, case-insensitive)
+   - `GET /api/overtime?projectId=:id` - Lista registros do projeto com paginação, filtros e resumo (`projectId` obrigatório)
+   - `POST /api/overtime` - Cria novo registro (exige `projectId`)
    - `GET /api/overtime/:id` - Busca registro por ID
    - `PUT /api/overtime/:id` - Atualiza registro
    - `DELETE /api/overtime/:id` - Deleta registro
+
+> **Divisão por Projetos:** cada registro pertence a exatamente um Projeto e o
+> **saldo é calculado por Projeto** (horas de um projeto não abatem folgas de
+> outro). Veja `docs/adr/0001-saldo-por-projeto.md` e o glossário em `CONTEXT.md`.
 4. Testes automatizados garantem qualidade do código (44 testes unitários + E2E)
 
 Banco: **SQLite** em `overtime.db`, criado/atualizado com `npm run db:push`.
@@ -103,7 +109,15 @@ Banco: **SQLite** em `overtime.db`, criado/atualizado com `npm run db:push`.
    npm run db:push
    ```
 
-   Isso aplica o schema definido em `lib/db/schema.ts` (tabela `overtime_entries`). Se o arquivo já existir, o Drizzle atualiza as tabelas conforme o schema.
+   Isso aplica o schema definido em `lib/db/schema.ts` (tabelas `projects` e `overtime_entries`). Se o arquivo já existir, o Drizzle atualiza as tabelas conforme o schema.
+
+   **Migração da divisão por projetos** (bancos que já tinham registros antes da feature de projetos): rode uma vez
+
+   ```bash
+   bun run lib/db/migrate-projects.ts
+   ```
+
+   Isso cria o projeto `NTT DATA` e associa todos os registros pré-existentes a ele (idempotente).
 
 4. **Subir a aplicação completa (API + Frontend)**
 
@@ -158,17 +172,33 @@ O projeto possui uma suíte completa de testes:
 - **Testes E2E**: Todos os endpoints da API (CRUD completo)
 
 ```bash
-# Rodar todos os testes
-bun test
+# Rodar todos os testes (unit + E2E de API)
+npm test          # = bun test ./tests
 
 # Modo watch (desenvolvimento)
-bun test --watch
+npm run test:watch
 ```
 
-**Resultado esperado:** 44 testes passando ✅
+**Resultado esperado:** 45 testes passando ✅
+
+#### E2E de browser (Playwright)
+
+Testes ponta-a-ponta que dirigem o app real no navegador (feature de projetos).
+Rodam contra um **banco de teste isolado** (`overtime.test.db`, resetado/semeado
+a cada execução) — os dados reais em `overtime.db` nunca são tocados.
+
+```bash
+npm run test:e2e        # roda a suíte (sobe API + frontend automaticamente)
+npm run test:e2e:ui     # modo interativo (Playwright UI)
+```
+
+> ⚠️ O Playwright sobe seus próprios servidores nas portas 3000/3001 e **não
+> reusa** um servidor existente. Pare qualquer `dev:full` antes de rodar o e2e,
+> senão dá erro de porta em uso.
 
 ### Funcionalidades
 
+- ✅ Divisão por projetos (saldo isolado por projeto, seletor global, criação inline)
 - ✅ Criar registro de horas (trabalhadas ou gozadas)
 - ✅ Listar registros com paginação e filtros
 - ✅ Editar registro existente (página dedicada)

@@ -14,8 +14,13 @@ export const overtimeRoutes = new Elysia({ prefix: '/api/overtime' })
       const startDate = query.startDate;
       const endDate = query.endDate;
       const type = query.type;
+      const projectId = query.projectId ? parseInt(query.projectId) : undefined;
 
-      const conditions = [];
+      if (!projectId || isNaN(projectId)) {
+        throw new Error('projectId é obrigatório');
+      }
+
+      const conditions = [eq(overtimeEntries.projectId, projectId)];
       if (startDate) {
         conditions.push(gte(overtimeEntries.date, startDate));
       }
@@ -26,7 +31,7 @@ export const overtimeRoutes = new Elysia({ prefix: '/api/overtime' })
         conditions.push(eq(overtimeEntries.type, type));
       }
 
-      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+      const whereClause = and(...conditions);
 
       const entries = await db
         .select()
@@ -41,9 +46,12 @@ export const overtimeRoutes = new Elysia({ prefix: '/api/overtime' })
         .from(overtimeEntries)
         .where(whereClause);
 
+      // Resumo é escopado ao projeto (saldo por projeto, ADR 0001), ignorando
+      // os filtros de data/tipo da listagem.
       const allEntries = await db
         .select()
-        .from(overtimeEntries);
+        .from(overtimeEntries)
+        .where(eq(overtimeEntries.projectId, projectId));
 
       const totalWorked = allEntries
         .filter(e => e.type === 'worked')
@@ -120,6 +128,7 @@ export const overtimeRoutes = new Elysia({ prefix: '/api/overtime' })
       const [newEntry] = await db
         .insert(overtimeEntries)
         .values({
+          projectId: validated.projectId,
           date: validated.date,
           type: validated.type,
           hours,
@@ -177,6 +186,7 @@ export const overtimeRoutes = new Elysia({ prefix: '/api/overtime' })
       const [updatedEntry] = await db
         .update(overtimeEntries)
         .set({
+          projectId: validated.projectId,
           date: validated.date,
           type: validated.type,
           hours,

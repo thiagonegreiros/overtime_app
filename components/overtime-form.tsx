@@ -20,9 +20,17 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus } from "lucide-react";
+import type { Project } from "@/lib/db/schema";
+
+const NEW_PROJECT_VALUE = "__new__";
 
 interface OvertimeFormProps {
   onSubmit: (data: OvertimeEntryInput) => Promise<void>;
+  projects: Project[];
+  /** Cria um novo projeto e retorna a entidade criada (com id). */
+  onCreateProject: (name: string) => Promise<Project>;
+  /** Projeto pré-selecionado ao criar um registro novo. */
+  defaultProjectId?: number;
   initialData?: OvertimeEntryInput;
   isEditing?: boolean;
   /** Quando "modal", não envolve em Card (para uso dentro de Dialog) */
@@ -31,12 +39,18 @@ interface OvertimeFormProps {
 
 export function OvertimeForm({
   onSubmit,
+  projects,
+  onCreateProject,
+  defaultProjectId,
   initialData,
   isEditing = false,
   variant = "card",
 }: OvertimeFormProps) {
   const [inputMode, setInputMode] = useState<"hours" | "time">("hours");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [creatingProject, setCreatingProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [projectError, setProjectError] = useState<string | null>(null);
 
   const {
     register,
@@ -50,10 +64,38 @@ export function OvertimeForm({
     defaultValues: initialData || {
       date: new Date().toISOString().split("T")[0],
       type: "worked",
+      projectId: defaultProjectId ?? projects[0]?.id,
     },
   });
 
   const type = watch("type");
+  const projectId = watch("projectId");
+
+  register("projectId", { valueAsNumber: true });
+
+  const handleProjectChange = (value: string) => {
+    if (value === NEW_PROJECT_VALUE) {
+      setCreatingProject(true);
+      return;
+    }
+    setValue("projectId", Number(value), { shouldValidate: true });
+  };
+
+  const handleCreateProject = async () => {
+    const name = newProjectName.trim();
+    if (!name) return;
+    setProjectError(null);
+    try {
+      const project = await onCreateProject(name);
+      setValue("projectId", project.id, { shouldValidate: true });
+      setNewProjectName("");
+      setCreatingProject(false);
+    } catch (err) {
+      setProjectError(
+        err instanceof Error ? err.message : "Erro ao criar projeto",
+      );
+    }
+  };
 
   const onFormSubmit = async (data: OvertimeEntryInput) => {
     // Garante que o campo `hours` seja preenchido quando o modo for horário de entrada/saída
@@ -83,6 +125,68 @@ export function OvertimeForm({
 
   const formContent = (
     <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="project">Projeto</Label>
+            {creatingProject ? (
+              <div className="flex gap-2">
+                <Input
+                  id="project"
+                  autoFocus
+                  placeholder="Nome do novo projeto"
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleCreateProject();
+                    }
+                  }}
+                />
+                <Button type="button" onClick={handleCreateProject}>
+                  Criar
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setCreatingProject(false);
+                    setNewProjectName("");
+                    setProjectError(null);
+                  }}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            ) : (
+              <Select
+                value={projectId ? String(projectId) : undefined}
+                onValueChange={handleProjectChange}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o projeto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={NEW_PROJECT_VALUE}>
+                    ➕ Novo projeto…
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+            {projectError && (
+              <p className="text-sm text-destructive">{projectError}</p>
+            )}
+            {errors.projectId && (
+              <p className="text-sm text-destructive">
+                {errors.projectId.message}
+              </p>
+            )}
+          </div>
+
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="date">Data</Label>

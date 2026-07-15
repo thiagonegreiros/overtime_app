@@ -5,10 +5,17 @@ import { useRouter } from "next/navigation";
 import { OvertimeForm } from "@/components/overtime-form";
 import { OvertimeList } from "@/components/overtime-list";
 import { OvertimeSummary } from "@/components/overtime-summary";
-import { OvertimeEntry } from "@/lib/db/schema";
+import { OvertimeEntry, Project } from "@/lib/db/schema";
 import { OvertimeEntryInput } from "@/lib/validations";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -17,9 +24,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { LayoutDashboard, List, Plus } from "lucide-react";
+import { LayoutDashboard, List, Plus, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { fetchEntries, createEntry, deleteEntry } from "@/lib/api-client";
+import {
+  fetchEntries,
+  createEntry,
+  deleteEntry,
+  fetchProjects,
+  createProject,
+} from "@/lib/api-client";
+import { lastProjectStorage } from "@/lib/local-storage";
 
 type Tab = "dashboard" | "registros";
 
@@ -28,6 +42,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [entries, setEntries] = useState<OvertimeEntry[]>([]);
   const [summary, setSummary] = useState({
     totalWorked: 0,
@@ -48,9 +64,11 @@ export default function Home() {
   const { toast } = useToast();
 
   const loadEntries = useCallback(async () => {
+    if (selectedProjectId === null) return;
     try {
       setIsLoading(true);
       const data = await fetchEntries({
+        projectId: selectedProjectId,
         page: pagination.page,
         limit: pagination.limit,
         type: typeFilter,
@@ -78,11 +96,55 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
-  }, [pagination.page, pagination.limit, typeFilter, toast]);
+  }, [selectedProjectId, pagination.page, pagination.limit, typeFilter, toast]);
+
+  // Carrega projetos e resolve o projeto selecionado (último usado, ou o primeiro).
+  const loadProjects = useCallback(async () => {
+    try {
+      const data = await fetchProjects();
+      setProjects(data);
+      setSelectedProjectId((current) => {
+        if (current !== null && data.some((p) => p.id === current)) {
+          return current;
+        }
+        const last = lastProjectStorage.get();
+        if (last !== null && data.some((p) => p.id === last)) {
+          return last;
+        }
+        return data[0]?.id ?? null;
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description:
+          error instanceof Error ? error.message : "Não foi possível carregar os projetos",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
 
   useEffect(() => {
     loadEntries();
   }, [loadEntries]);
+
+  const handleProjectChange = (value: string) => {
+    const id = Number(value);
+    setSelectedProjectId(id);
+    lastProjectStorage.set(id);
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  const handleCreateProject = useCallback(async (name: string): Promise<Project> => {
+    const project = await createProject(name);
+    setProjects((prev) =>
+      [...prev, project].sort((a, b) => a.name.localeCompare(b.name)),
+    );
+    return project;
+  }, []);
 
   const handleSubmit = async (data: OvertimeEntryInput) => {
     try {
@@ -155,10 +217,33 @@ export default function Home() {
               Controle suas horas trabalhadas e horas extras
             </p>
           </div>
-          <Button onClick={() => setModalOpen(true)} className="shrink-0">
-            <Plus className="h-4 w-4" />
-            Adicionar Registro
-          </Button>
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2">
+              <Briefcase className="h-4 w-4 text-muted-foreground" />
+              <Select
+                value={selectedProjectId ? String(selectedProjectId) : undefined}
+                onValueChange={handleProjectChange}
+              >
+                <SelectTrigger className="w-[200px]" data-testid="project-selector">
+                  <SelectValue placeholder="Selecione o projeto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              onClick={() => setModalOpen(true)}
+              disabled={selectedProjectId === null}
+            >
+              <Plus className="h-4 w-4" />
+              Adicionar Registro
+            </Button>
+          </div>
         </div>
 
         <div className="flex gap-2 p-1 rounded-lg bg-muted/50 w-fit">
@@ -222,7 +307,13 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle>Adicionar Registro de Horas</DialogTitle>
           </DialogHeader>
-          <OvertimeForm onSubmit={handleSubmit} variant="modal" />
+          <OvertimeForm
+            onSubmit={handleSubmit}
+            projects={projects}
+            onCreateProject={handleCreateProject}
+            defaultProjectId={selectedProjectId ?? undefined}
+            variant="modal"
+          />
         </DialogContent>
       </Dialog>
 

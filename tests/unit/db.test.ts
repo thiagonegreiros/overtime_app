@@ -19,6 +19,7 @@ describe('Database Operations', () => {
       const [entry] = await testDb.db
         .insert(overtimeEntries)
         .values({
+          projectId: 1,
           date: '2025-02-17',
           type: 'worked',
           hours: 2.5,
@@ -37,6 +38,7 @@ describe('Database Operations', () => {
       const [entry] = await testDb.db
         .insert(overtimeEntries)
         .values({
+          projectId: 1,
           date: '2025-02-17',
           type: 'worked',
           hours: 2,
@@ -52,12 +54,12 @@ describe('Database Operations', () => {
     it('should auto-generate id', async () => {
       const [entry1] = await testDb.db
         .insert(overtimeEntries)
-        .values({ date: '2025-02-17', type: 'worked', hours: 2 })
+        .values({ projectId: 1, date: '2025-02-17', type: 'worked', hours: 2 })
         .returning();
 
       const [entry2] = await testDb.db
         .insert(overtimeEntries)
-        .values({ date: '2025-02-18', type: 'used', hours: 1 })
+        .values({ projectId: 1, date: '2025-02-18', type: 'used', hours: 1 })
         .returning();
 
       expect(entry1.id).toBe(1);
@@ -68,8 +70,8 @@ describe('Database Operations', () => {
   describe('Read Operations', () => {
     it('should retrieve all entries', async () => {
       await testDb.db.insert(overtimeEntries).values([
-        { date: '2025-02-17', type: 'worked', hours: 2 },
-        { date: '2025-02-18', type: 'used', hours: 1 },
+        { projectId: 1, date: '2025-02-17', type: 'worked', hours: 2 },
+        { projectId: 1, date: '2025-02-18', type: 'used', hours: 1 },
       ]);
 
       const entries = await testDb.db.select().from(overtimeEntries);
@@ -79,7 +81,7 @@ describe('Database Operations', () => {
     it('should retrieve entry by id', async () => {
       const [created] = await testDb.db
         .insert(overtimeEntries)
-        .values({ date: '2025-02-17', type: 'worked', hours: 2 })
+        .values({ projectId: 1, date: '2025-02-17', type: 'worked', hours: 2 })
         .returning();
 
       const [found] = await testDb.db
@@ -93,9 +95,9 @@ describe('Database Operations', () => {
 
     it('should filter by type', async () => {
       await testDb.db.insert(overtimeEntries).values([
-        { date: '2025-02-17', type: 'worked', hours: 2 },
-        { date: '2025-02-18', type: 'used', hours: 1 },
-        { date: '2025-02-19', type: 'worked', hours: 3 },
+        { projectId: 1, date: '2025-02-17', type: 'worked', hours: 2 },
+        { projectId: 1, date: '2025-02-18', type: 'used', hours: 1 },
+        { projectId: 1, date: '2025-02-19', type: 'worked', hours: 3 },
       ]);
 
       const worked = await testDb.db
@@ -112,7 +114,7 @@ describe('Database Operations', () => {
     it('should update an entry', async () => {
       const [created] = await testDb.db
         .insert(overtimeEntries)
-        .values({ date: '2025-02-17', type: 'worked', hours: 2 })
+        .values({ projectId: 1, date: '2025-02-17', type: 'worked', hours: 2 })
         .returning();
 
       const [updated] = await testDb.db
@@ -128,7 +130,7 @@ describe('Database Operations', () => {
     it('should update type', async () => {
       const [created] = await testDb.db
         .insert(overtimeEntries)
-        .values({ date: '2025-02-17', type: 'worked', hours: 2 })
+        .values({ projectId: 1, date: '2025-02-17', type: 'worked', hours: 2 })
         .returning();
 
       const [updated] = await testDb.db
@@ -145,7 +147,7 @@ describe('Database Operations', () => {
     it('should delete an entry', async () => {
       const [created] = await testDb.db
         .insert(overtimeEntries)
-        .values({ date: '2025-02-17', type: 'worked', hours: 2 })
+        .values({ projectId: 1, date: '2025-02-17', type: 'worked', hours: 2 })
         .returning();
 
       const [deleted] = await testDb.db

@@ -5,6 +5,7 @@ describe('Validations', () => {
   describe('overtimeEntrySchema', () => {
     it('should validate a valid entry with direct hours', () => {
       const validData = {
+        projectId: 1,
         date: '2025-02-17',
         type: 'worked' as const,
         hours: 2.5,
@@ -16,6 +17,7 @@ describe('Validations', () => {
 
     it('should validate a valid entry with start and end time', () => {
       const validData = {
+        projectId: 1,
         date: '2025-02-17',
         type: 'worked' as const,
         startTime: '08:00',
@@ -28,6 +30,7 @@ describe('Validations', () => {
 
     it('should validate entry with description', () => {
       const validData = {
+        projectId: 1,
         date: '2025-02-17',
         type: 'used' as const,
         hours: 4,
@@ -40,6 +43,18 @@ describe('Validations', () => {
 
     it('should reject entry without date', () => {
       const invalidData = {
+        projectId: 1,
+        type: 'worked' as const,
+        hours: 2,
+      };
+
+      const result = overtimeEntrySchema.safeParse(invalidData);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject entry without project', () => {
+      const invalidData = {
+        date: '2025-02-17',
         type: 'worked' as const,
         hours: 2,
       };

@@ -9,13 +9,16 @@ describe('Overtime API E2E Tests', () => {
     const { Elysia: ElysiaClass } = await import('elysia');
     const { cors } = await import('@elysiajs/cors');
     const { createTestDb } = await import('../setup');
-    const { overtimeEntries } = await import('../../lib/db/schema');
+    const { overtimeEntries, projects } = await import('../../lib/db/schema');
     const { overtimeEntrySchema } = await import('../../lib/validations');
     const { calculateHours } = await import('../../lib/utils');
     const { eq, desc, and, gte, lte, sql } = await import('drizzle-orm');
 
     const testDb = createTestDb();
     const db = testDb.db;
+
+    // Projeto padrão usado por todos os registros de teste.
+    await db.insert(projects).values({ name: 'NTT DATA' });
 
     const overtimeRoutes = new ElysiaClass({ prefix: '/api/overtime' })
       .get('/', async ({ query }) => {
@@ -72,7 +75,7 @@ describe('Overtime API E2E Tests', () => {
         if (!hours && validated.startTime && validated.endTime) {
           hours = calculateHours(validated.startTime, validated.endTime);
         }
-        const [newEntry] = await db.insert(overtimeEntries).values({ date: validated.date, type: validated.type, hours, startTime: validated.startTime, endTime: validated.endTime, description: validated.description }).returning();
+        const [newEntry] = await db.insert(overtimeEntries).values({ projectId: validated.projectId, date: validated.date, type: validated.type, hours, startTime: validated.startTime, endTime: validated.endTime, description: validated.description }).returning();
         return newEntry;
       })
       .get('/:id', async ({ params: { id } }) => {
@@ -90,7 +93,7 @@ describe('Overtime API E2E Tests', () => {
         if (!hours && validated.startTime && validated.endTime) {
           hours = calculateHours(validated.startTime, validated.endTime);
         }
-        const [updatedEntry] = await db.update(overtimeEntries).set({ date: validated.date, type: validated.type, hours, startTime: validated.startTime, endTime: validated.endTime, description: validated.description }).where(eq(overtimeEntries.id, entryId)).returning();
+        const [updatedEntry] = await db.update(overtimeEntries).set({ projectId: validated.projectId, date: validated.date, type: validated.type, hours, startTime: validated.startTime, endTime: validated.endTime, description: validated.description }).where(eq(overtimeEntries.id, entryId)).returning();
         if (!updatedEntry) throw new Error('Registro não encontrado');
         return updatedEntry;
       })
@@ -128,6 +131,7 @@ describe('Overtime API E2E Tests', () => {
 
   it('POST /api/overtime - should create entry with direct hours', async () => {
     const newEntry = {
+      projectId: 1,
       date: '2025-02-17',
       type: 'worked',
       hours: 2.5,
@@ -150,6 +154,7 @@ describe('Overtime API E2E Tests', () => {
 
   it('POST /api/overtime - should create entry with time range', async () => {
     const newEntry = {
+      projectId: 1,
       date: '2025-02-18',
       type: 'worked',
       startTime: '08:00',
@@ -195,7 +200,7 @@ describe('Overtime API E2E Tests', () => {
     const createResponse = await fetch(`${baseURL}/api/overtime`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: '2025-02-19', type: 'used', hours: 4 }),
+      body: JSON.stringify({ projectId: 1, date: '2025-02-19', type: 'used', hours: 4 }),
     });
     const created = await createResponse.json();
 
@@ -214,14 +219,14 @@ describe('Overtime API E2E Tests', () => {
     const createResponse = await fetch(`${baseURL}/api/overtime`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: '2025-02-20', type: 'worked', hours: 2 }),
+      body: JSON.stringify({ projectId: 1, date: '2025-02-20', type: 'worked', hours: 2 }),
     });
     const created = await createResponse.json();
 
     const updateResponse = await fetch(`${baseURL}/api/overtime/${created.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: '2025-02-20', type: 'worked', hours: 3, description: 'Updated' }),
+      body: JSON.stringify({ projectId: 1, date: '2025-02-20', type: 'worked', hours: 3, description: 'Updated' }),
     });
 
     expect(updateResponse.status).toBe(200);
@@ -234,7 +239,7 @@ describe('Overtime API E2E Tests', () => {
     const createResponse = await fetch(`${baseURL}/api/overtime`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: '2025-02-21', type: 'worked', hours: 2 }),
+      body: JSON.stringify({ projectId: 1, date: '2025-02-21', type: 'worked', hours: 2 }),
     });
     const created = await createResponse.json();
 
