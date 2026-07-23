@@ -30,3 +30,33 @@ export function formatHours(hours: number): string {
 export function calculateBalance(worked: number, used: number): number {
   return worked - used;
 }
+
+/**
+ * Lista os meses (formato `YYYY-MM`) de `startMonth` até `endMonth`, inclusive.
+ * Ambos os argumentos são `YYYY-MM`. Retorna vazio se o range for inválido
+ * (start depois de end).
+ */
+export function listMonths(startMonth: string, endMonth: string): string[] {
+  const [startYear, startMon] = startMonth.split("-").map(Number);
+  const [endYear, endMon] = endMonth.split("-").map(Number);
+
+  if (
+    !startYear || !startMon || !endYear || !endMon ||
+    startYear * 12 + startMon > endYear * 12 + endMon
+  ) {
+    return [];
+  }
+
+  const months: string[] = [];
+  let year = startYear;
+  let mon = startMon;
+  while (year * 12 + mon <= endYear * 12 + endMon) {
+    months.push(`${year}-${String(mon).padStart(2, "0")}`);
+    mon += 1;
+    if (mon > 12) {
+      mon = 1;
+      year += 1;
+    }
+  }
+  return months;
+}

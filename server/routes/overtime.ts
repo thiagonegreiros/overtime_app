@@ -4,6 +4,7 @@ import { overtimeEntries } from '../../lib/db/schema';
 import { overtimeEntrySchema } from '../../lib/validations';
 import { calculateHours } from '../../lib/utils';
 import { eq, desc, and, gte, lte, sql } from 'drizzle-orm';
+import { listMonths } from '../../lib/utils';
 
 export const overtimeRoutes = new Elysia({ prefix: '/api/overtime' })
   .get('/', async ({ query }) => {
@@ -145,6 +146,76 @@ export const overtimeRoutes = new Elysia({ prefix: '/api/overtime' })
         throw new Error('Dados inválidos');
       }
       throw new Error('Erro ao criar registro');
+    }
+  })
+  .get('/monthly', async ({ query }) => {
+    try {
+      const projectId = query.projectId ? parseInt(query.projectId) : undefined;
+      const startMonth = query.startMonth; // YYYY-MM
+      const endMonth = query.endMonth; // YYYY-MM
+
+      if (!projectId || isNaN(projectId)) {
+        throw new Error('projectId é obrigatório');
+      }
+      if (!startMonth || !endMonth || !/^\d{4}-\d{2}$/.test(startMonth) || !/^\d{4}-\d{2}$/.test(endMonth)) {
+        throw new Error('startMonth e endMonth são obrigatórios (formato YYYY-MM)');
+      }
+
+      const months = listMonths(startMonth, endMonth);
+      if (months.length === 0) {
+        throw new Error('Período inválido: o mês inicial deve ser anterior ou igual ao final');
+      }
+      if (months.length > 12) {
+        throw new Error('O período do relatório não pode exceder 12 meses');
+      }
+
+      // Range de datas cobrindo o período inteiro (do primeiro dia do mês
+      // inicial ao último dia do mês final).
+      const startDate = `${startMonth}-01`;
+      const [endYear, endMon] = endMonth.split('-').map(Number);
+      const lastDay = new Date(endYear, endMon, 0).getDate();
+      const endDate = `${endMonth}-${String(lastDay).padStart(2, '0')}`;
+
+      // Só horas trabalhadas (worked), agregadas por mês (YYYY-MM).
+      const monthExpr = sql<string>`substr(${overtimeEntries.date}, 1, 7)`;
+      const rows = await db
+        .select({
+          month: monthExpr,
+          totalHours: sql<number>`coalesce(sum(${overtimeEntries.hours}), 0)`,
+          daysWithOvertime: sql<number>`count(distinct ${overtimeEntries.date})`,
+        })
+        .from(overtimeEntries)
+        .where(
+          and(
+            eq(overtimeEntries.projectId, projectId),
+            eq(overtimeEntries.type, 'worked'),
+            gte(overtimeEntries.date, startDate),
+            lte(overtimeEntries.date, endDate),
+          ),
+        )
+        .groupBy(monthExpr);
+
+      const byMonth = new Map(rows.map((r) => [r.month, r]));
+
+      // Preenche todos os meses do período (inclusive os sem registros).
+      const data = months.map((month) => {
+        const row = byMonth.get(month);
+        return {
+          month,
+          totalHours: Math.round((row?.totalHours ?? 0) * 10) / 10,
+          daysWithOvertime: row?.daysWithOvertime ?? 0,
+        };
+      });
+
+      const totalHours = Math.round(
+        data.reduce((sum, d) => sum + d.totalHours, 0) * 10,
+      ) / 10;
+      const totalDays = data.reduce((sum, d) => sum + d.daysWithOvertime, 0);
+
+      return { data, totals: { totalHours, totalDays } };
+    } catch (error) {
+      console.error('Error building monthly report:', error);
+      throw error instanceof Error ? error : new Error('Erro ao gerar relatório');
     }
   })
   .get('/:id', async ({ params: { id } }) => {
