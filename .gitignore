@@ -7,6 +7,11 @@ node_modules
 .DS_Store
 .abacusai
 
+# Agent / domain docs — não versionados
+CLAUDE.md
+docs/adr/
+docs/agents/
+
 # Playwright
 /test-results
 /playwright-report
