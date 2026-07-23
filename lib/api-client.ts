@@ -30,6 +30,37 @@ export interface FetchEntriesParams {
   endDate?: string;
 }
 
+export interface MonthlyReportEntry {
+  month: string; // YYYY-MM
+  totalHours: number;
+  daysWithOvertime: number;
+}
+
+export interface MonthlyReportResponse {
+  data: MonthlyReportEntry[];
+  totals: { totalHours: number; totalDays: number };
+}
+
+export async function fetchMonthlyReport(params: {
+  projectId: number;
+  startMonth: string; // YYYY-MM
+  endMonth: string; // YYYY-MM
+}): Promise<MonthlyReportResponse> {
+  const searchParams = new URLSearchParams({
+    projectId: params.projectId.toString(),
+    startMonth: params.startMonth,
+    endMonth: params.endMonth,
+  });
+
+  const response = await fetch(`${API_URL}/api/overtime/monthly?${searchParams}`);
+
+  if (!response.ok) {
+    throw new Error('Erro ao gerar relatório');
+  }
+
+  return response.json();
+}
+
 export async function fetchProjects(): Promise<Project[]> {
   const response = await fetch(`${API_URL}/api/projects`);
 

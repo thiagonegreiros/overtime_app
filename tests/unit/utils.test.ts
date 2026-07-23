@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { calculateHours, formatHours, calculateAvailableDays, calculateBalance } from '../../lib/utils';
+import { calculateHours, formatHours, calculateAvailableDays, calculateBalance, listMonths } from '../../lib/utils';
 
 describe('Utils', () => {
   describe('calculateHours', () => {
@@ -87,6 +87,33 @@ describe('Utils', () => {
     it('should handle decimal values', () => {
       expect(calculateBalance(10.5, 3.25)).toBe(7.25);
       expect(calculateBalance(15.75, 8.5)).toBe(7.25);
+    });
+  });
+
+  describe('listMonths', () => {
+    it('should list months within the same year', () => {
+      expect(listMonths('2026-01', '2026-03')).toEqual(['2026-01', '2026-02', '2026-03']);
+    });
+
+    it('should cross year boundaries', () => {
+      expect(listMonths('2025-11', '2026-02')).toEqual([
+        '2025-11',
+        '2025-12',
+        '2026-01',
+        '2026-02',
+      ]);
+    });
+
+    it('should return a single month when start equals end', () => {
+      expect(listMonths('2026-07', '2026-07')).toEqual(['2026-07']);
+    });
+
+    it('should return empty when start is after end', () => {
+      expect(listMonths('2026-05', '2026-01')).toEqual([]);
+    });
+
+    it('should return 12 months for a full year', () => {
+      expect(listMonths('2026-01', '2026-12')).toHaveLength(12);
     });
   });
 });

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { OvertimeForm } from "@/components/overtime-form";
 import { OvertimeList } from "@/components/overtime-list";
 import { OvertimeSummary } from "@/components/overtime-summary";
+import { OvertimeReport } from "@/components/overtime-report";
 import { OvertimeEntry, Project } from "@/lib/db/schema";
 import { OvertimeEntryInput } from "@/lib/validations";
 import { useToast } from "@/components/ui/use-toast";
@@ -24,7 +25,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { LayoutDashboard, List, Plus, Briefcase } from "lucide-react";
+import { LayoutDashboard, List, Plus, Briefcase, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   fetchEntries,
@@ -35,7 +36,7 @@ import {
 } from "@/lib/api-client";
 import { lastProjectStorage } from "@/lib/local-storage";
 
-type Tab = "dashboard" | "registros";
+type Tab = "dashboard" | "registros" | "relatorio";
 
 export default function Home() {
   const router = useRouter();
@@ -265,6 +266,15 @@ export default function Home() {
             <List className="h-4 w-4" />
             Registros
           </Button>
+          <Button
+            variant={activeTab === "relatorio" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("relatorio")}
+            className={cn("gap-2", activeTab === "relatorio" && "shadow-sm")}
+          >
+            <BarChart3 className="h-4 w-4" />
+            Relatório
+          </Button>
         </div>
 
         {activeTab === "dashboard" && (
@@ -299,6 +309,15 @@ export default function Home() {
               />
             )}
           </>
+        )}
+
+        {activeTab === "relatorio" && (
+          <OvertimeReport
+            projectId={selectedProjectId}
+            projectName={
+              projects.find((p) => p.id === selectedProjectId)?.name
+            }
+          />
         )}
       </div>
 
